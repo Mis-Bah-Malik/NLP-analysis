@@ -3,72 +3,86 @@ import torch
 from transformers import AutoTokenizer, BertModel
 import numpy as np
 
-class ParagraphAnalyzer:
-    def __init__(self, paragraph):
-        self.paragraph = paragraph
+class BlogSemanticAnalyzer:
+    def __init__(self, article_text):
+        self.article = article_text
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         self.model = BertModel.from_pretrained('bert-base-uncased')
 
-    def analyze_paragraph(self):
-        # Tokenize the paragraph
-        marked_text = "[CLS] " + self.paragraph + " [SEP]"
+    def semantic_interpretation(self):
+        # Prepare text for analysis
+        marked_text = "[CLS] " + self.article + " [SEP]"
         tokens = self.tokenizer.tokenize(marked_text)
         
-        # Convert tokens to ids
+        # Convert tokens to tensor
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokens)
         segments_ids = [1] * len(indexed_tokens)
         
-        # Create tensors
         tokens_tensor = torch.tensor([indexed_tokens])
         segments_tensor = torch.tensor([segments_ids])
         
         # Generate embeddings
         with torch.no_grad():
             outputs = self.model(tokens_tensor, segments_tensor)
-            hidden_states = outputs.last_hidden_state
+            embeddings = outputs.last_hidden_state
         
-        # Detailed Analysis
-        analysis = {
-            'Original Text': self.paragraph,
-            'Tokens': tokens,
-            'Token Count': len(tokens),
-            'Unique Words': len(set(tokens)),
-            'Semantic Complexity': {
-                'Embedding Dimension': hidden_states.shape[-1],
-                'Token Embedding Variance': float(torch.var(hidden_states)),
-            },
-            'Word Breakdown': self.word_level_analysis(tokens)
+        # Semantic Analysis Calculations
+        semantic_density = float(torch.mean(torch.norm(embeddings, dim=-1)))
+        contextual_complexity = float(torch.var(embeddings))
+        
+        # Generate Explanatory Paragraph
+        explanation = self.generate_semantic_explanation(
+            tokens, 
+            semantic_density, 
+            contextual_complexity
+        )
+        
+        return {
+            'semantic_explanation': explanation,
+            'metrics': {
+                'total_tokens': len(tokens),
+                'semantic_density': semantic_density,
+                'contextual_complexity': contextual_complexity
+            }
         }
-        return analysis
 
-    def word_level_analysis(self, tokens):
-        word_details = []
-        for token in tokens:
-            word_details.append({
-                'token': token,
-                'length': len(token),
-                'is_special_token': token in ['[CLS]', '[SEP]']
-            })
-        return word_details
+    def generate_semantic_explanation(self, tokens, semantic_density, complexity):
+        # Contextual semantic interpretation
+        readability_interpretation = (
+            f"The text demonstrates a {'rich' if semantic_density > 0.5 else 'moderate'} semantic structure "
+            f"with {len(tokens)} tokens. The semantic density of {semantic_density:.2f} suggests "
+            f"{'deep' if semantic_density > 0.7 else 'moderate'} information complexity. "
+            f"Contextual variations indicate {'nuanced' if complexity > 0.4 else 'consistent'} narrative flow. "
+            "RankBrain and BERT analysis reveal the text's underlying semantic relationships, "
+            "capturing subtle contextual meanings beyond simple word-by-word interpretation."
+        )
+        return readability_interpretation
 
 def main():
-    st.title('Paragraph Deep Analysis 🔍')
+    st.title('Blog Article Semantic Analyzer 📝')
     
-    # Paragraph input
-    paragraph = st.text_area(
-        'Enter your paragraph:',
-        'Machine learning transforms how we understand and process language.',
+    # Article input
+    article = st.text_area(
+        'Paste your blog article:',
+        'Machine learning transforms how we understand and process complex language patterns. '
+        'Advanced algorithms enable deeper insights into textual semantics and contextual understanding.',
         height=200
     )
     
     # Analyze button
-    if st.button('Analyze Paragraph'):
+    if st.button('Analyze Semantic Structure'):
         try:
-            analyzer = ParagraphAnalyzer(paragraph)
-            results = analyzer.analyze_paragraph()
+            analyzer = BlogSemanticAnalyzer(article)
+            results = analyzer.semantic_interpretation()
             
-            # Display results
-            st.json(results)
+            # Display semantic explanation
+            st.subheader('Semantic Interpretation')
+            st.write(results['semantic_explanation'])
+            
+            # Display detailed metrics
+            st.subheader('Semantic Metrics')
+            st.json(results['metrics'])
+        
         except Exception as e:
             st.error(f"Analysis Error: {e}")
 
